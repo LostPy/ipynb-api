@@ -1,6 +1,6 @@
 
 mod notebook;
-mod utils;
+pub mod utils;
 
 pub mod error {
     use std::error::Error;
@@ -46,6 +46,7 @@ impl CellType {
         match cell_type {
             "markdown" => CellType::Markdown,
             "code" => CellType::Code,
+
             _ => {panic!("{}", "'cell_type' can be 'markdown' or 'code'");}
         }
     }
@@ -70,10 +71,64 @@ impl OutputType {
     }
 }
 
+pub use notebook::{
+    Notebook,
+    Cell,
+    Output,
+    Metadata,
+};
+
 #[cfg(test)]
 mod tests {
+    use crate::{
+        Notebook,
+        //Cell,
+        //Output,
+        CellType,
+        OutputType,
+        ExportFormat,
+    };
+
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn test_cell_type_from_str() {
+        let cell_code = "code";
+        let cell_markdown = "markdown";
+        match CellType::from_str(cell_code) {
+            CellType::Code => (),
+            _ => panic!("bad conversion &str to CellType"),
+        };
+        match CellType::from_str(cell_markdown) {
+            CellType::Markdown => (),
+            _ => panic!("bad conversion &str to CellType"),
+        };
+    }
+
+    #[test]
+    fn test_output_type_from_str() {
+        match OutputType::from_str("stream") {
+            OutputType::Stream => (),
+            _ => panic!("bad conversion &str to OutputType"),
+        };
+        match OutputType::from_str("execute_result") {
+            OutputType::ExecuteResult => (),
+            _ => panic!("bad conversion &str to OutputType"),
+        };
+        match OutputType::from_str("error") {
+            OutputType::Error => (),
+            _ => panic!("bad conversion &str to OutputType"),
+        };
+    }
+
+    #[test]
+    fn test_read_notebook() {
+        let nb = Notebook::new("./test.ipynb".to_string());
+        println!("{:?}", nb);
+        assert_eq!(nb.get_cells().len(), 7);
+    }
+
+    #[test]
+    fn test_export_markdown() {
+        let nb = Notebook::new("./test.ipynb".to_string());
+        nb.export(&"export_test.md".to_string(), ExportFormat::Markdown)
     }
 }

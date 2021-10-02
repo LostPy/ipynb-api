@@ -1,6 +1,5 @@
-use std::error;
 use std::fs;
-use serde;
+use std::io::Write;
 use serde_json as json;
 use crate::{
     ExportFormat,
@@ -15,7 +14,7 @@ pub struct Notebook {
     path : String,
     metadata : Metadata,
     nbformat : u8,
-    nbformat_mirror : u8,
+    nbformat_minor : u8,
     cells : Vec<Cell>,
 }
 
@@ -30,9 +29,29 @@ impl Notebook {
             path,
             metadata: Metadata::new(),
             nbformat: json_nb["nbformat"].as_u64().unwrap() as u8,
-            nbformat_mirror: json_nb["nbformat_mirror"].as_u64().unwrap() as u8,
+            nbformat_minor: json_nb["nbformat_minor"].as_u64().unwrap() as u8,
             cells: Cell::new_vec(&json_nb["cells"]),
         }
+    }
+
+    pub fn get_path(&self) -> &String {
+        &self.path
+    }
+
+    pub fn get_metadata(&self) -> &Metadata {
+        &self.metadata
+    }
+
+    pub fn get_nbformat(&self) -> u8 {
+        self.nbformat
+    }
+
+    pub fn get_nbformat_mirror(&self) -> u8 {
+        self.nbformat_minor
+    }
+
+    pub fn get_cells(&self) -> &Vec<Cell> {
+        &self.cells
     }
 
     pub fn load(&mut self) {
@@ -43,13 +62,22 @@ impl Notebook {
 
         self.metadata = Metadata::new();
         self.nbformat = json_nb["nbformat"].as_u64().unwrap() as u8;
-        self.nbformat_mirror = json_nb["nbformat_mirror"].as_u64().unwrap() as u8;
+        self.nbformat_minor = json_nb["nbformat_minor"].as_u64().unwrap() as u8;
         self.cells = Cell::new_vec(&json_nb["cells"]);
     }
 
     pub fn save(&self) {
         // Save the jupyter notebook file
         unimplemented!()
+    }
+
+    pub fn to_markdown(&self) -> String {
+        let mut markdown = String::new();
+
+        for cell in &self.cells {
+            markdown.push_str(&format!("{}\n", cell.to_markdown()));
+        }
+        markdown
     }
 
     pub fn export(&self, output : &String, export_format : ExportFormat) {
@@ -61,7 +89,8 @@ impl Notebook {
 
     pub fn export_to_markdown(&self, output : &String) {
         // Export Notebook in a Markdown file
-        unimplemented!()
+        let mut file = fs::File::create(output).unwrap();
+        file.write_all(self.to_markdown().as_bytes()).unwrap();
     }
 }
 
@@ -81,20 +110,21 @@ impl Cell {
         // This function panic if the value of json is not the expected value
 
         // use to check if cell has an output and execution_cout key:
-        let cell_type = CellType::from_str(&json_cell["cell_type"].to_string());
+        let cell_type = CellType::from_str(&json_cell["cell_type"].as_str().unwrap());
 
         Self {
-            cell_type: CellType::from_str(&json_cell["cell_type"].to_string()),
-            id: json_cell["id"].to_string(),
+            cell_type: CellType::from_str(json_cell["cell_type"].as_str().unwrap()),
+            id: json_cell["id"].as_str().unwrap().to_string(),
             metadata: Metadata::new(),
             source: json::from_str(&json_cell["source"].to_string()).unwrap(),
             outputs: match cell_type {
                 CellType::Markdown => Option::None,
                 _ => Option::Some(Output::new_vec(&json_cell["outputs"])),
             },
-            execution_count: match cell_type {
-                CellType::Markdown => Option::None,
-                _ => Option::Some(json::from_str(&json_cell["execution_count"].to_string()).unwrap()),
+            execution_count: if json_cell["execution_count"].is_null() {
+                Option::None
+            } else {
+                Option::Some(json::from_str(&json_cell["execution_count"].to_string()).unwrap())
             },
         }
     }
@@ -108,12 +138,63 @@ impl Cell {
         }
         cells
     }
+
+    pub fn get_type(&self) -> &CellType {
+        &self.cell_type
+    }
+
+    pub fn get_id(&self) -> &String {
+        &self.id
+    }
+
+    pub fn get_metadata(&self) -> &Metadata {
+        &self.metadata
+    }
+
+    pub fn get_source(&self) -> &Vec<String> {
+        &self.source
+    }
+
+    pub fn get_source_as_string(&self) -> String {
+        utils::vec_to_string(&self.source)
+    }
+
+    pub fn get_outputs(&self) -> &Option<Vec<Output>> {
+        &self.outputs
+    }
+
+    pub fn get_execution_count(&self) -> &Option<usize> {
+        &self.execution_count
+    }
+
+    pub fn outputs_to_markdown(&self) -> String {
+        let mut markdown: String = "Output\n```\n".to_string();
+
+        match self.outputs {
+            Some(ref outputs) => for output in outputs {
+                markdown.push_str(&format!("{}\n", output.to_text()));
+            },
+            None => {return String::new();},
+        }
+        markdown = markdown.trim().to_string();
+        markdown.push_str("\n```");
+        markdown
+    }
+
+    pub fn to_markdown(&self) -> String {
+        let cell_md = match self.cell_type {
+            CellType::Markdown => self.get_source_as_string(),
+            _ => format!("```\n{}\n```", self.get_source_as_string()),
+        };
+
+        format!("{}\n{}\n", cell_md, self.outputs_to_markdown())
+    }
 }
 
 
 
 #[derive(Debug)]
-struct Output {
+pub struct Output {
     name : String,
     output_type : OutputType,
     text : Vec<String>,
@@ -128,7 +209,7 @@ impl Output {
         let output: Self = match utils::read::normalize_output(json_output) {
             Ok(ref result) => Self {
                 name: result["name"].to_string(),
-                output_type: OutputType::from_str(&result["output_type"].to_string()),
+                output_type: OutputType::from_str(&result["output_type"].as_str().unwrap()),
                 text: json::from_str(&result["text"].to_string()).unwrap(),
                 error: json::from_str(&result["error"].to_string()).unwrap(),
                 error_value: if result["error_value"] == json::Value::Null {
@@ -182,11 +263,24 @@ impl Output {
     pub fn is_error(&self) -> bool {
         self.error
     }
+
+    pub fn to_text(&self) -> String {
+        // Return a String with the text of output, if self is an error: the first line is the error_value
+        match self.error_value {
+            Some(ref evalue) => format!("{}\n{}", evalue, self.get_text_as_string()),
+            None => self.get_text_as_string(),
+        }
+    }
+
+    pub fn to_markdown(&self) -> String {
+        // Return the result of `self.to_text` in a Markdown code block
+        format!("```\n{}```", self.to_text())
+    }
 }
 
 
 #[derive(Debug)]
-struct Metadata {
+pub struct Metadata {
 
 }
 

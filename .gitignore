@@ -1,2 +1,7 @@
+# rust
 /target
 Cargo.lock
+
+# jupyter notebook
+.ipynb*
+**/.ipynb*

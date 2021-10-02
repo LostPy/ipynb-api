@@ -6,9 +6,9 @@ pub mod read {
 
     pub fn normalize_output(output: &json::Value) -> Result<json::Value, IPyNbError> {
         let new_output: json::Value;
-        
+
         if output.is_object() {
-            let output_type: &str = &output["output_type"].to_string();
+            let output_type: &str = &output["output_type"].as_str().unwrap(); // unrap temporary (probably)
 
             match output_type {
                 "stream" => {new_output = output_stream(output)?;},
