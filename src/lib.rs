@@ -1,5 +1,6 @@
 
-mod notebook;
+pub mod python;
+pub mod notebook;
 pub mod utils;
 
 pub mod error {
@@ -34,6 +35,21 @@ pub enum ExportFormat {
     Markdown,
 }
 
+impl ExportFormat {
+    pub fn from_str(format: &str) -> Self {
+        match format {
+            "markdown" => ExportFormat::Markdown,
+            _ => {panic!("{}", "'cell_type' can be 'markdown' or 'code'");}
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        match self {
+            ExportFormat::Markdown => "markdown".to_string(),
+        }
+    }
+}
+
 
 #[derive(Debug)]
 pub enum CellType {
@@ -48,6 +64,13 @@ impl CellType {
             "code" => CellType::Code,
 
             _ => {panic!("{}", "'cell_type' can be 'markdown' or 'code'");}
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        match self {
+            CellType::Markdown => "markdown".to_string(),
+            CellType::Code => "code".to_string(),
         }
     }
 }
@@ -67,6 +90,14 @@ impl OutputType {
             "execute_result" => OutputType::ExecuteResult,
             "error" => OutputType::Error,
             _ => panic!("{}", "'output_type' can be 'stream', 'execute_result' or 'error'"),
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        match self {
+            OutputType::Stream => "stream".to_string(),
+            OutputType::ExecuteResult => "execute_result".to_string(),
+            OutputType::Error => "error".to_string(),
         }
     }
 }

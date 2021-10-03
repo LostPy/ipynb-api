@@ -46,7 +46,7 @@ impl Notebook {
         self.nbformat
     }
 
-    pub fn get_nbformat_mirror(&self) -> u8 {
+    pub fn get_nbformat_minor(&self) -> u8 {
         self.nbformat_minor
     }
 

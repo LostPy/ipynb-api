@@ -5,3 +5,10 @@ Cargo.lock
 # jupyter notebook
 .ipynb*
 **/.ipynb*
+
+
+# dist
+ipynb_api.egg-info*
+
+# pycache
+/__pycache__

@@ -2,8 +2,15 @@
 name = "ipynb-api"
 version = "0.1.0"
 edition = "2018"
+authors = ["LostPy"]
 
+[lib]
+name = "ipynb_api"
+crate-type = ["lib", "cdylib"]
 
 [dependencies]
 serde = "1.0"
 serde_json = "1.0"
+
+[dependencies.pyo3]
+features = ["extension-module"]
